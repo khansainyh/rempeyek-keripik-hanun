@@ -48,6 +48,4 @@ export const products: Product[] = [
   },
 ];
 
-export const WHATSAPP_NUMBER = '6281234567890'; // Ganti dengan nomor WA asli
-export const INSTAGRAM_HANDLE = '@hanun.keripik'; // Ganti dengan IG asli
-export const INSTAGRAM_URL = 'https://instagram.com/hanun.keripik';
+export const WHATSAPP_NUMBER = '6285740171750';

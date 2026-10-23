@@ -1,5 +1,5 @@
 import './style.css';
-import { products, WHATSAPP_NUMBER, INSTAGRAM_HANDLE, INSTAGRAM_URL, type Product } from './data/products';
+import { products, WHATSAPP_NUMBER, type Product } from './data/products';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -47,11 +47,6 @@ function initImageSkeletons(root: HTMLElement): void {
 
 function renderLinks(): void {
   document.getElementById('link-whatsapp')?.setAttribute('href', `https://wa.me/${WHATSAPP_NUMBER}`);
-  const ig = document.getElementById('link-instagram');
-  if (ig) {
-    ig.setAttribute('href', INSTAGRAM_URL);
-    ig.textContent = INSTAGRAM_HANDLE;
-  }
   document.querySelectorAll<HTMLAnchorElement>('[data-wa-msg]').forEach((btn) => {
     btn.href = waLink(btn.dataset.waMsg ?? 'Halo Hanun, saya mau bertanya.');
   });
