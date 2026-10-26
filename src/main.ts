@@ -4,14 +4,6 @@ import { fetchProductsFromSheet } from './sheets';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function formatPrice(price: number): string {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    maximumFractionDigits: 0,
-  }).format(price);
-}
-
 function waLink(message: string): string {
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
 }
@@ -29,7 +21,6 @@ function renderSkeletons(count: number): string {
         <div class="skeleton-line skeleton-line--desc"></div>
       </div>
       <div class="menu-side">
-        <div class="skeleton-line skeleton-line--price"></div>
         <div class="skeleton-line skeleton-line--btn"></div>
       </div>
     </li>`,
@@ -42,10 +33,20 @@ function renderSkeletons(count: number): string {
 function renderProduct(product: Product): string {
   const tag = product.badge ? `<span class="menu-tag">${product.badge}</span>` : '';
   const msg = `Halo Hanun, saya mau pesan ${product.name}.`;
+  // onerror: fallback ke uc?export=view jika thumbnail gagal load
+  const fallbackSrc = product.image.includes('drive.google.com/thumbnail')
+    ? product.image.replace(
+        /https:\/\/drive\.google\.com\/thumbnail\?id=([\w-]+).*/,
+        'https://drive.google.com/uc?export=view&id=$1',
+      )
+    : '';
+  const onerror = fallbackSrc
+    ? `onerror="if(this.dataset.fallback!=='1'){this.dataset.fallback='1';this.src='${fallbackSrc}'}"`
+    : '';
   return `
     <li class="menu-item">
       <div class="thumb">
-        <img src="${product.image}" alt="${product.name} Hanun" loading="lazy" width="112" height="112" />
+        <img src="${product.image}" alt="${product.name} Hanun" loading="lazy" width="112" height="112" ${onerror}/>
       </div>
       <div>
         <h3 class="menu-name">${product.name}${tag}</h3>
@@ -106,21 +107,6 @@ function initHamburger(): void {
   });
 }
 
-// ─── Product data source badge ───────────────────────────────────────────────
-
-function showDataSourceBadge(source: 'sheets' | 'local'): void {
-  const badge = document.getElementById('data-source-badge');
-  if (!badge) return;
-  if (source === 'sheets') {
-    badge.textContent = '✓ Data dari Google Sheets';
-    badge.classList.add('badge--live');
-  } else {
-    badge.textContent = '⚠ Data lokal (Google Sheets belum dikonfigurasi)';
-    badge.classList.add('badge--local');
-  }
-  badge.removeAttribute('hidden');
-}
-
 // ─── Init ────────────────────────────────────────────────────────────────────
 
 async function init(): Promise<void> {
@@ -136,7 +122,6 @@ async function init(): Promise<void> {
   // Try Google Sheets first, fall back to local data
   const sheetsProducts = await fetchProductsFromSheet();
   const products: Product[] = sheetsProducts ?? localProducts;
-  const source = sheetsProducts ? 'sheets' : 'local';
 
   grid.innerHTML = products.map(renderProduct).join('');
   initImageSkeletons(grid);
