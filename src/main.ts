@@ -1,23 +1,49 @@
 import './style.css';
-import { products, WHATSAPP_NUMBER, type Product } from './data/products';
+import { products as localProducts, WHATSAPP_NUMBER, type Product } from './data/products';
+import { fetchProductsFromSheet } from './sheets';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function formatPrice(price: number): string {
-  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(price);
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0,
+  }).format(price);
 }
 
 function waLink(message: string): string {
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
 }
 
-// ─── Render product row ─────────────────────────────────────────────────────
+// ─── Loading skeleton ────────────────────────────────────────────────────────
+
+function renderSkeletons(count: number): string {
+  return Array.from({ length: count })
+    .map(
+      () => `
+    <li class="menu-item menu-item--skeleton" aria-hidden="true">
+      <div class="thumb thumb--skeleton"></div>
+      <div class="skeleton-text">
+        <div class="skeleton-line skeleton-line--title"></div>
+        <div class="skeleton-line skeleton-line--desc"></div>
+      </div>
+      <div class="menu-side">
+        <div class="skeleton-line skeleton-line--price"></div>
+        <div class="skeleton-line skeleton-line--btn"></div>
+      </div>
+    </li>`,
+    )
+    .join('');
+}
+
+// ─── Render product row ──────────────────────────────────────────────────────
 
 function renderProduct(product: Product): string {
   const tag = product.badge ? `<span class="menu-tag">${product.badge}</span>` : '';
   const msg = `Halo Hanun, saya mau pesan ${product.name}.`;
   return `
-    <li class="menu-item" >
+    <li class="menu-item">
       <div class="thumb">
         <img src="${product.image}" alt="${product.name} Hanun" loading="lazy" width="112" height="112" />
       </div>
@@ -26,7 +52,6 @@ function renderProduct(product: Product): string {
         <p class="menu-desc">${product.description}</p>
       </div>
       <div class="menu-side">
-        <span class="menu-price">${formatPrice(product.price)}</span>
         <a href="${waLink(msg)}" class="btn btn-line btn-sm" target="_blank" rel="noopener noreferrer" id="order-${product.id}">Pesan</a>
       </div>
     </li>`;
@@ -43,7 +68,7 @@ function initImageSkeletons(root: HTMLElement): void {
   });
 }
 
-// ─── Links ──────────────────────────────────────────────────────────────────
+// ─── Links ───────────────────────────────────────────────────────────────────
 
 function renderLinks(): void {
   document.getElementById('link-whatsapp')?.setAttribute('href', `https://wa.me/${WHATSAPP_NUMBER}`);
@@ -66,7 +91,6 @@ function initHamburger(): void {
     btn.setAttribute('aria-expanded', String(open));
   });
 
-  // Close on link click
   nav.querySelectorAll('a').forEach((link) => {
     link.addEventListener('click', () => {
       nav.classList.remove('open');
@@ -74,7 +98,6 @@ function initHamburger(): void {
     });
   });
 
-  // Close on outside click
   document.addEventListener('click', (e) => {
     if (!btn.contains(e.target as Node) && !nav.contains(e.target as Node)) {
       nav.classList.remove('open');
@@ -83,17 +106,42 @@ function initHamburger(): void {
   });
 }
 
+// ─── Product data source badge ───────────────────────────────────────────────
 
-// ─── Init ───────────────────────────────────────────────────────────────────
-
-function init(): void {
-  const grid = document.getElementById('produkGrid');
-  if (grid) {
-    grid.innerHTML = products.map(renderProduct).join('');
-    initImageSkeletons(grid);
+function showDataSourceBadge(source: 'sheets' | 'local'): void {
+  const badge = document.getElementById('data-source-badge');
+  if (!badge) return;
+  if (source === 'sheets') {
+    badge.textContent = '✓ Data dari Google Sheets';
+    badge.classList.add('badge--live');
+  } else {
+    badge.textContent = '⚠ Data lokal (Google Sheets belum dikonfigurasi)';
+    badge.classList.add('badge--local');
   }
-  renderLinks();
-  initHamburger();
+  badge.removeAttribute('hidden');
 }
 
-document.addEventListener('DOMContentLoaded', init);
+// ─── Init ────────────────────────────────────────────────────────────────────
+
+async function init(): Promise<void> {
+  renderLinks();
+  initHamburger();
+
+  const grid = document.getElementById('produkGrid');
+  if (!grid) return;
+
+  // Show skeleton while loading
+  grid.innerHTML = renderSkeletons(5);
+
+  // Try Google Sheets first, fall back to local data
+  const sheetsProducts = await fetchProductsFromSheet();
+  const products: Product[] = sheetsProducts ?? localProducts;
+  const source = sheetsProducts ? 'sheets' : 'local';
+
+  grid.innerHTML = products.map(renderProduct).join('');
+  initImageSkeletons(grid);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  void init();
+});
